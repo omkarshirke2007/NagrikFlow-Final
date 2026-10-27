@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user profile with role-based permissions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin", "worker", "citizen"] },
+        "createdAt": { "type": "string" },
+        "isSynthetic": { "type": "boolean" }
+      },
+      "required": ["uid", "displayName", "email", "role", "createdAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Authorized municipal administrator reference document",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "CollectionPoint": {
+      "title": "CollectionPoint",
+      "description": "Verified urban waste collection point in the city",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 150 },
+        "address": { "type": "string", "maxLength": 250 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "zone": { "type": "string", "maxLength": 80 },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "isSynthetic": { "type": "boolean" }
+      },
+      "required": ["name", "address", "latitude", "longitude", "zone", "createdAt", "createdBy"]
+    },
+    "CollectionTask": {
+      "title": "CollectionTask",
+      "description": "Waste collection dispatch task assigned to municipal collection workers",
+      "type": "object",
+      "properties": {
+        "locationId": { "type": "string", "maxLength": 128 },
+        "locationName": { "type": "string", "maxLength": 150 },
+        "assignedWorkerUid": { "type": "string", "maxLength": 128 },
+        "assignedWorkerName": { "type": "string", "maxLength": 100 },
+        "scheduledAt": { "type": "string", "maxLength": 60 },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Completed", "Missed"] },
+        "completionNote": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "isSynthetic": { "type": "boolean" }
+      },
+      "required": ["locationId", "assignedWorkerUid", "scheduledAt", "status", "createdAt", "updatedAt"]
+    },
+    "TaskStatusHistory": {
+      "title": "TaskStatusHistory",
+      "description": "Immutable audit trail of status transitions for collection tasks",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string", "maxLength": 128 },
+        "previousStatus": { "type": "string", "maxLength": 50 },
+        "newStatus": { "type": "string", "maxLength": 50 },
+        "changedBy": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string" },
+        "note": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["taskId", "previousStatus", "newStatus", "changedBy", "timestamp"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Citizen waste complaint regarding garbage overflow, missed pickup, or dumping",
+      "type": "object",
+      "properties": {
+        "citizenUid": { "type": "string", "maxLength": 128 },
+        "citizenName": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "enum": ["Overflowing Bin", "Missed Pickup", "Illegal Dumping", "Hazardous Waste", "Damaged Bin", "Other"] },
+        "description": { "type": "string", "maxLength": 1000 },
+        "address": { "type": "string", "maxLength": 250 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "photoPath": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["Pending", "In Review", "Resolved", "Rejected"] },
+        "statusNote": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "isSynthetic": { "type": "boolean" }
+      },
+      "required": ["citizenUid", "category", "description", "address", "latitude", "longitude", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with role designation"
+    },
+    "/admins/{userId}": {
+      "schema": "Admin",
+      "description": "Trusted collection of authorized administrators"
+    },
+    "/collectionPoints/{pointId}": {
+      "schema": "CollectionPoint",
+      "description": "Verified collection points in the municipal jurisdiction"
+    },
+    "/collectionTasks/{taskId}": {
+      "schema": "CollectionTask",
+      "description": "Municipal waste collection tasks assigned to workers"
+    },
+    "/taskStatusHistory/{historyId}": {
+      "schema": "TaskStatusHistory",
+      "description": "Audit log for task status transitions"
+    },
+    "/complaints/{complaintId}": {
+      "schema": "Complaint",
+      "description": "Citizen filed waste complaints and resolution status"
+    }
+  }
+}

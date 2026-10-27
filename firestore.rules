@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'omkarshirke2007@gmail.com' && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'password'))
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'email', 'role', 'createdAt', 'isSynthetic']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.displayName is string && data.displayName.size() <= 100 &&
+        data.email is string && data.email.size() <= 120 &&
+        data.role in ['admin', 'worker', 'citizen'] &&
+        data.createdAt is string &&
+        (!('isSynthetic' in data) || data.isSynthetic is bool);
+    }
+
+    function isValidCollectionPoint(data) {
+      return data.keys().hasAll(['name', 'address', 'latitude', 'longitude', 'zone', 'createdAt', 'createdBy']) &&
+        data.keys().hasOnly(['name', 'address', 'latitude', 'longitude', 'zone', 'createdAt', 'createdBy', 'isSynthetic']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+        data.address is string && data.address.size() > 0 && data.address.size() <= 250 &&
+        data.latitude is number && data.latitude >= -90.0 && data.latitude <= 90.0 &&
+        data.longitude is number && data.longitude >= -180.0 && data.longitude <= 180.0 &&
+        data.zone is string && data.zone.size() <= 80 &&
+        data.createdAt is string &&
+        data.createdBy is string &&
+        (!('isSynthetic' in data) || data.isSynthetic is bool);
+    }
+
+    function isValidCollectionTask(data) {
+      return data.keys().hasAll(['locationId', 'assignedWorkerUid', 'scheduledAt', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['locationId', 'locationName', 'assignedWorkerUid', 'assignedWorkerName', 'scheduledAt', 'status', 'completionNote', 'createdAt', 'updatedAt', 'isSynthetic']) &&
+        data.locationId is string && data.locationId.size() <= 128 &&
+        data.assignedWorkerUid is string && data.assignedWorkerUid.size() <= 128 &&
+        data.scheduledAt is string && data.scheduledAt.size() <= 60 &&
+        data.status in ['Pending', 'In Progress', 'Completed', 'Missed'] &&
+        (!('completionNote' in data) || (data.completionNote is string && data.completionNote.size() <= 500)) &&
+        (!('locationName' in data) || (data.locationName is string && data.locationName.size() <= 150)) &&
+        (!('assignedWorkerName' in data) || (data.assignedWorkerName is string && data.assignedWorkerName.size() <= 100)) &&
+        data.createdAt is string &&
+        data.updatedAt is string &&
+        (!('isSynthetic' in data) || data.isSynthetic is bool);
+    }
+
+    function isValidTaskStatusHistory(data) {
+      return data.keys().hasAll(['taskId', 'previousStatus', 'newStatus', 'changedBy', 'timestamp']) &&
+        data.keys().hasOnly(['taskId', 'previousStatus', 'newStatus', 'changedBy', 'timestamp', 'note']) &&
+        data.taskId is string && data.taskId.size() <= 128 &&
+        data.previousStatus is string && data.previousStatus.size() <= 50 &&
+        data.newStatus is string && data.newStatus.size() <= 50 &&
+        data.changedBy is string && data.changedBy.size() <= 128 &&
+        data.timestamp is string &&
+        (!('note' in data) || (data.note is string && data.note.size() <= 500));
+    }
+
+    function isValidComplaint(data) {
+      return data.keys().hasAll(['citizenUid', 'category', 'description', 'address', 'latitude', 'longitude', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['citizenUid', 'citizenName', 'category', 'description', 'address', 'latitude', 'longitude', 'photoPath', 'status', 'statusNote', 'createdAt', 'updatedAt', 'isSynthetic']) &&
+        data.citizenUid is string && data.citizenUid.size() <= 128 &&
+        data.category in ['Overflowing Bin', 'Missed Pickup', 'Illegal Dumping', 'Hazardous Waste', 'Damaged Bin', 'Other'] &&
+        data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
+        data.address is string && data.address.size() > 0 && data.address.size() <= 250 &&
+        data.latitude is number && data.latitude >= -90.0 && data.latitude <= 90.0 &&
+        data.longitude is number && data.longitude >= -180.0 && data.longitude <= 180.0 &&
+        data.status in ['Pending', 'In Review', 'Resolved', 'Rejected'] &&
+        (!('citizenName' in data) || (data.citizenName is string && data.citizenName.size() <= 100)) &&
+        (!('photoPath' in data) || (data.photoPath is string && data.photoPath.size() <= 500)) &&
+        (!('statusNote' in data) || (data.statusNote is string && data.statusNote.size() <= 500)) &&
+        data.createdAt is string &&
+        data.updatedAt is string &&
+        (!('isSynthetic' in data) || data.isSynthetic is bool);
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() && isValidUser(incoming()) && (
+        isAdmin() || (
+          request.auth.uid == userId && (incoming().role in ['worker', 'citizen'])
+        )
+      );
+      allow update: if isSignedIn() && isValidUser(incoming()) && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          incoming().role == existing().role &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Collection Points Collection
+    match /collectionPoints/{pointId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidCollectionPoint(incoming());
+      allow update: if isAdmin() && isValidCollectionPoint(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Collection Tasks Collection
+    match /collectionTasks/{taskId} {
+      allow get: if isSignedIn() && (isAdmin() || resource.data.assignedWorkerUid == request.auth.uid);
+      allow list: if isSignedIn();
+      allow create: if isAdmin() && isValidCollectionTask(incoming());
+      allow update: if isSignedIn() && isValidCollectionTask(incoming()) && (
+        isAdmin() || (
+          resource.data.assignedWorkerUid == request.auth.uid &&
+          existing().status != 'Completed' &&
+          incoming().assignedWorkerUid == existing().assignedWorkerUid &&
+          incoming().locationId == existing().locationId &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completionNote', 'updatedAt'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Task Status History Collection (Audit Trail)
+    match /taskStatusHistory/{historyId} {
+      allow get: if isSignedIn() && (isAdmin() || resource.data.changedBy == request.auth.uid);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidTaskStatusHistory(incoming()) && (
+        isAdmin() || incoming().changedBy == request.auth.uid
+      );
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // Citizen Complaints Collection
+    match /complaints/{complaintId} {
+      allow get: if isSignedIn() && (isAdmin() || resource.data.citizenUid == request.auth.uid);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidComplaint(incoming()) && (
+        isAdmin() || (
+          incoming().citizenUid == request.auth.uid &&
+          incoming().status == 'Pending'
+        )
+      );
+      allow update: if isAdmin() &&
+        isValidComplaint(incoming()) &&
+        incoming().citizenUid == existing().citizenUid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'statusNote', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // System connection test probe
+    match /test/{docId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

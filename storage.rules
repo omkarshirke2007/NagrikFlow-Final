@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Firebase Cloud Storage security rules for NagrikFlow waste complaint photos
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /complaint_photos/{userId}/{fileName} {
+      // Anyone authenticated can read complaint photos (e.g., admin inspecting or citizen viewing)
+      allow read: if request.auth != null;
+      // Citizen can only upload to their own user directory, max 5MB, image only
+      allow write: if request.auth != null &&
+        request.auth.uid == userId &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+  }
+}

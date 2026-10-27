@@ -1,0 +1,6 @@
+{
+  "name": "NagrikFlow - Urban Waste Management",
+  "description": "Minimal full-stack urban waste collection management platform for Indian cities with role-based collection task tracking, verified map points, and citizen complaints.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
